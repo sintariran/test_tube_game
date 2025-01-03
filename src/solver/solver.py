@@ -20,136 +20,45 @@ class TubeSolver:
         self.seen_states: Set[str] = set()
         self.eval_cache = {}
         
-    def solve(self, initial_state: TubeState, max_iterations: int = 200000) -> Optional[List[Tuple[int, int]]]:
-        """パズルを解くメインロジック"""
-        print("パズルを解く:")
-        print("探索を開始します...")
-        
-        visited = {}  # 状態のハッシュ値をキーとし、その状態に到達した最小の深さを値とする
-        queue = [(initial_state, [], 0)]
+    def solve(self, initial_state, max_iterations=100000):
+        """パズルを解く"""
         best_score = float('-inf')
-        best_state = None
-        best_moves = None
+        best_moves = []
+        best_move_history = []
+        visited = set()
+        queue = [(initial_state, [], [])]  # (state, moves, move_history)
         iterations = 0
-        states_explored = 0
-        no_improvement_count = 0
 
         while queue and iterations < max_iterations:
-            # スコアが高い状態を優先的に探索
-            if iterations % 100 == 0:  # 定期的にソート
-                queue.sort(key=lambda x: self._evaluate(x[0], x[2]), reverse=True)
-            current_state, moves, depth = queue.pop(0)  # 先頭から取り出す
-            states_explored += 1
-            
-            if iterations % 1000 == 0:
-                print(f"\n探索回数: {iterations}")
-                print(f"探索済み状態数: {states_explored}")
-                current_score = self._evaluate(current_state, depth)
-                print(f"現在のスコア: {current_score}")
-                print(f"最高スコア: {best_score}")
-                print(f"現在の手数: {depth}")
-                if best_moves:
-                    for i, (from_tube, to_tube, color) in enumerate(best_moves, 1):
-                        self._print_state(
-                            state=current_state,
-                            move_count=i,
-                            from_tube=from_tube,
-                            to_tube=to_tube,
-                            moved_color=self._get_color_name(color),
-                            score=best_score
-                        )
-            
+            iterations += 1
+            current_state, moves, move_history = queue.pop()
             state_hash = current_state.get_hash()
-            if state_hash in visited and visited[state_hash] <= depth:
+
+            if state_hash in visited:
                 continue
-            visited[state_hash] = depth
-            
-            score = self._evaluate(current_state, depth)
+
+            visited.add(state_hash)
+            score = self._evaluate(current_state, len(moves))
+
             if score > best_score:
                 best_score = score
-                best_state = current_state
-                best_moves = moves
-                no_improvement_count = 0
-                print(f"\n新しい最高スコア: {best_score}")
-                if best_moves:
-                    for i, (from_tube, to_tube, color) in enumerate(best_moves, 1):
-                        self._print_state(
-                            state=current_state,
-                            move_count=i,
-                            from_tube=from_tube,
-                            to_tube=to_tube,
-                            moved_color=self._get_color_name(color),
-                            score=best_score
-                        )
-            else:
-                no_improvement_count += 1
-                
-            # 一定回数改善が見られない場合、探索をリセット
-            if no_improvement_count > 2000:  # より長く待つように調整
-                print("\n探索をリセットします...")
-                queue = [(best_state, best_moves, len(best_moves))]
-                visited.clear()
-                no_improvement_count = 0
-                continue
+                best_moves = moves.copy()
+                best_move_history = move_history.copy()
+                self._print_state(current_state, score, moves, move_history)
 
             if current_state.is_solved():
-                print("\n解が見つかりました!")
-                if moves:
-                    for i, (from_tube, to_tube, color) in enumerate(moves, 1):
-                        self._print_state(
-                            state=current_state,
-                            move_count=i,
-                            from_tube=from_tube,
-                            to_tube=to_tube,
-                            moved_color=self._get_color_name(color),
-                            score=score
-                        )
-                return True, moves
-                
-            # 有効な移動手順を生成
+                return True, moves, score, move_history
+
             next_moves = self._get_valid_moves(current_state)
-            
-            # 移動手順をスコアで評価してソート
-            scored_moves = []
             for from_tube, to_tube in next_moves:
                 new_state = current_state.copy()
-                color = new_state.tubes[from_tube][-1]
-                new_state.move(from_tube, to_tube)
-                move_score = self._evaluate(new_state, depth + 1)
-                scored_moves.append((move_score, from_tube, to_tube))
-            
-            # スコアの高い順に並べ替え
-            scored_moves.sort(reverse=True)
-            
-            # 上位の手順のみを探索（深さに応じて探索範囲を調整）
-            max_moves = max(8, 25 - depth)  # 探索範囲を広げる
-            for move_score, from_tube, to_tube in scored_moves[:max_moves]:
-                new_state = current_state.copy()
-                color = new_state.tubes[from_tube][-1]
-                new_state.move(from_tube, to_tube)
-                new_moves = moves + [(from_tube, to_tube, color)]
-                
-                # 同じ状態でも、より少ない手数で到達できる場合は探索を続ける
-                new_hash = new_state.get_hash()
-                if new_hash not in visited or visited[new_hash] > depth + 1:
-                    queue.append((new_state, new_moves, depth + 1))
-                
-            iterations += 1
+                color = new_state.tubes[from_tube][-1] if new_state.tubes[from_tube] else None
+                if new_state.move(from_tube, to_tube) and color is not None:
+                    new_moves = moves + [(from_tube, to_tube)]
+                    new_move_history = move_history + [(from_tube, to_tube, color)]
+                    queue.append((new_state, new_moves, new_move_history))
 
-        print("\n解が見つかりませんでした。")
-        print(f"探索回数: {iterations}")
-        print(f"最高スコア: {best_score}")
-        if best_moves:
-            for i, (from_tube, to_tube, color) in enumerate(best_moves, 1):
-                self._print_state(
-                    state=best_state,
-                    move_count=i,
-                    from_tube=from_tube,
-                    to_tube=to_tube,
-                    moved_color=self._get_color_name(color),
-                    score=best_score
-                )
-        return False, best_moves
+        return False, best_moves, best_score, best_move_history
         
     def _evaluate(self, state: TubeState, depth: int) -> int:
         """状態を評価する関数"""
@@ -280,21 +189,20 @@ class TubeSolver:
         }
         return color_names.get(color, "不明")
 
-    def _print_state(self, state, move_count=None, from_tube=None, to_tube=None, moved_color=None, score=None):
-        if move_count is not None:
-            print(f"\n{move_count:2d}手目: ", end="")
-            if from_tube is not None and to_tube is not None and moved_color is not None:
-                print(f"試験管{from_tube+1:2d} → 試験管{to_tube+1:2d} ({moved_color}を移動)")
-        
-        print("\n現在の状態:")
-        if score is not None:
-            print(f"スコア: {score}")
-            print(f"手数: {move_count if move_count is not None else 0}")
-        
+    def _print_state(self, state, score, moves, move_history=None):
+        print(f"\n現在の状態:")
+        print(f"スコア: {score}")
+        print(f"手数: {len(moves)}")
         print("\n試験管の状態:")
         for i, tube in enumerate(state.tubes):
             colors = [self._get_color_name(color) for color in tube]
             print(f"試験管{i+1:2d}: {colors}")
+
+        if move_history:
+            print("\n手順一覧:")
+            for i, (from_tube, to_tube, color) in enumerate(move_history, 1):
+                color_name = self._get_color_name(color)
+                print(f"{i:2d}手目: 試験管{from_tube+1:2d} → 試験管{to_tube+1:2d} ({color_name}を移動)")
 
     def _is_unknown_color(self, color):
         """色が不明かどうかを判定する"""

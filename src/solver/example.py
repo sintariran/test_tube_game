@@ -19,10 +19,10 @@ UNKNOWN = (128, 128, 128)  # 未知の色（?マーク）
 # 初期状態の定義（下から上の順）
 initial_tubes = [
     # 上段の試験管（左から）
-    [RED, GREEN, PURPLE, YELLOW],  # 1: 赤/緑/赤紫/黄
+    [DARK_GREEN, GREEN, PURPLE, YELLOW],  # 1: 深緑/緑/赤紫/黄
     [GREEN, PINK, DARK_GREEN, SKIN],  # 2: 緑/ピンク/深緑/肌色
     [PURPLE, RED, LIGHT_BLUE, GREEN],  # 3: 赤紫/赤/水色/緑
-    [DARK_GREEN, PINK, SKIN, YELLOW],  # 4: 深緑ピンク/肌色/黄
+    [RED, PINK, SKIN, YELLOW],  # 4: 赤/ピンク/肌色/黄
     [VIOLET, SKIN, ORANGE, BLUE],  # 5: 紫/肌色/オレンジ/青
     [YELLOW, BLUE, SKIN, GREEN],  # 6: 黄/青/肌色/緑
     
